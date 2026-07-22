@@ -46,6 +46,8 @@ def init_db():
         )
         """)
         cursor.execute("INSERT INTO settings (key, value) VALUES ('show_private', 'false') ON CONFLICT (key) DO NOTHING")
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('submissions_frozen', 'false') ON CONFLICT (key) DO NOTHING")
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('max_daily_submissions', '5') ON CONFLICT (key) DO NOTHING")
     else:
         pass # 생략
 
@@ -77,6 +79,18 @@ def register_team(team_name: str, password: str) -> bool:
         
     conn.close()
     return success
+
+def verify_team(team_name: str, password: str) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    if DATABASE_URL:
+        cursor.execute("SELECT password_hash FROM teams WHERE team_name = %s", (team_name,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row and row[0] == hash_password(password):
+        return True
+    return False
 
 def add_submission(team_name: str, filename: str, public_score: float, private_score: float):
     conn = get_connection()
@@ -180,5 +194,13 @@ def set_setting(key: str, value: str):
     cursor = conn.cursor()
     if DATABASE_URL:
         cursor.execute("UPDATE settings SET value = %s WHERE key = %s", (value, key))
+    conn.commit()
+    conn.close()
+
+def delete_team_submissions(team_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    if DATABASE_URL:
+        cursor.execute("DELETE FROM submissions WHERE team_name = %s", (team_name,))
     conn.commit()
     conn.close()

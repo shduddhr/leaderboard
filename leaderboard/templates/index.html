@@ -422,6 +422,34 @@
             background: rgba(15, 23, 42, 0.8);
         }
 
+        .timer-banner {
+            background: rgba(79, 70, 229, 0.15);
+            border: 1px solid rgba(79, 70, 229, 0.4);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .timer-title {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .timer-numbers {
+            font-family: monospace;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #a5b4fc;
+            letter-spacing: 0.05em;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -448,6 +476,12 @@
 
     <!-- 알림창 표시 구역 -->
     <div id="alert-box"></div>
+
+    <!-- ⏳ 종료 카운트다운 타이머 -->
+    <div class="timer-banner">
+        <div class="timer-title">Private 리더보드 공개까지 남은 시간</div>
+        <div class="timer-numbers" id="countdown-timer">00일 00:00:00</div>
+    </div>
 
     <!-- 로그인 전 화면 -->
     {% if not team_name %}
@@ -487,7 +521,7 @@
     {% endif %}
 
     <!-- 로그인 후 화면 (대시보드) -->
-    {% if team_name %}
+    {% if team_name and not is_admin %}
     <div class="card dashboard-grid">
         <!-- 내 정보 -->
         <div class="team-info">
@@ -513,7 +547,11 @@
         <!-- 예측 파일 제출 -->
         <div>
             <h2 class="card-title">예측 결과 제출</h2>
-            {% if remaining_submissions > 0 %}
+            {% if submissions_frozen %}
+            <div style="padding: 1.5rem; background: rgba(245, 158, 11, 0.1); border-radius: 12px; border: 1px dashed rgba(245, 158, 11, 0.3); text-align: center; color: #fbbf24;">
+                🛑 관리자에 의해 현재 제출이 일시 중단되었습니다.
+            </div>
+            {% elif remaining_submissions > 0 %}
             <form id="submit-form" action="/submit" method="post" enctype="multipart/form-data">
                 <div class="upload-area" id="drop-zone">
                     <div class="upload-icon">📤</div>
@@ -532,6 +570,58 @@
                 ⚠️ 오늘 제출할 수 있는 횟수를 초과했습니다. 내일 다시 도전해 주세요!
             </div>
             {% endif %}
+        </div>
+    </div>
+    {% elif is_admin %}
+    <!-- 👑 전용 관리자 대시보드 -->
+    <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.5); background: rgba(20, 20, 25, 0.8);">
+        <h2 class="card-title" style="color: #fbbf24;">👑 관리자 대시보드 <a href="/logout" class="logout-link" style="margin:0 0 0 auto; color: var(--text-secondary);">로그아웃</a></h2>
+        
+        <div class="auth-grid">
+            <!-- 설정 패널 -->
+            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px;">
+                <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #a5b4fc;">대회 운영 설정</h3>
+                <form action="/admin/update-settings" method="post" style="display:flex; flex-direction:column; gap:1rem;">
+                    <div>
+                        <label style="display:block; font-size:0.9rem; margin-bottom:0.5rem;">일일 제출 횟수 제한</label>
+                        <input type="number" name="max_daily_submissions" class="form-control" value="{{ max_submissions }}" required min="1" max="100">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.9rem; margin-bottom:0.5rem;">모든 팀 제출 강제 중단 (Freeze)</label>
+                        <select name="submissions_frozen" class="form-control">
+                            <option value="false" {% if not submissions_frozen %}selected{% endif %}>제출 허용 중 🟢</option>
+                            <option value="true" {% if submissions_frozen %}selected{% endif %}>제출 중단 🛑</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);">설정 저장 적용</button>
+                </form>
+            </div>
+
+            <!-- 위험 설정 패널 -->
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(245,158,11,0.3);">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #fbbf24;">Private 오픈 토글</h3>
+                    <form action="/admin/toggle-private" method="post">
+                        <button type="submit" class="btn" style="background: linear-gradient(135deg, var(--accent-warn) 0%, #d97706 100%);">
+                            {% if show_private %}
+                            현재: 전체 오픈 상태 🔓 (Public 뷰로 되돌리기)
+                            {% else %}
+                            현재: 전체 비공개 🔒 (전체 강제 오픈하기)
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+                
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(239,68,68,0.3);">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #ef4444;">특정 팀 참가기록 초기화</h3>
+                    <form action="/admin/reset-team" method="post" onsubmit="return confirm('정말로 이 팀의 모든 제출 기록을 날리겠습니까? 되돌릴 수 없습니다.');">
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" name="target_team" class="form-control" placeholder="초기화할 팀명" required>
+                            <button type="submit" class="btn" style="background: #ef4444; width: auto; white-space:nowrap;">기록 리셋</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -638,28 +728,37 @@
     </div>
     {% endif %}
 
-    <!-- 관리자 영역 -->
-    <div class="admin-zone">
-        <div class="admin-trigger" onclick="toggleAdminCard()">관리자 전용 설정</div>
-        <div class="card admin-card" id="admin-card">
-            <form action="/admin/toggle-private" method="post">
-                <div class="form-group">
-                    <label for="admin-pass">관리자 비밀번호</label>
-                    <input type="password" id="admin-pass" name="admin_pass" class="form-control" required>
-                </div>
-                <button type="submit" class="btn" style="background: linear-gradient(135deg, var(--accent-warn) 0%, #d97706 100%);">
-                    {% if show_private %}
-                    Public 리더보드로 전환
-                    {% else %}
-                    Private 리더보드(최종순위) 공개
-                    {% endif %}
-                </button>
-            </form>
-        </div>
-    </div>
+
 </div>
 
 <script>
+    // 카운트다운 타이머 로직 (마감일: 2026-07-28 23:59:00 KST)
+    const targetDate = new Date('2026-07-28T23:59:00+09:00').getTime();
+    
+    function updateTimer() {
+        const now = new Date().getTime();
+        const distance = targetDate - now;
+        
+        const timerElement = document.getElementById('countdown-timer');
+        
+        if (distance < 0) {
+            timerElement.textContent = "종료되었습니다! (Private 공개됨)";
+            return;
+        }
+        
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        const formatZero = (num) => String(num).padStart(2, '0');
+        
+        timerElement.textContent = `${formatZero(days)}일 ${formatZero(hours)}:${formatZero(minutes)}:${formatZero(seconds)}`;
+    }
+    
+    updateTimer();
+    setInterval(updateTimer, 1000);
+
     // 드래그 앤 드롭 파일 로드 설정
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -697,12 +796,6 @@
         }
     }
 
-    // 관리자 카드 토글
-    function toggleAdminCard() {
-        const card = document.getElementById('admin-card');
-        card.style.display = (card.style.display === 'block') ? 'none' : 'block';
-    }
-
     // URL 에러 및 메시지 파싱하여 알림창 띄우기
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -722,7 +815,8 @@
             'row_count_mismatch': '❌ 제출 행 수(30,000행)가 올바르지 않습니다.',
             'id_mismatch': '❌ test.csv와 Customer_ID 세트가 일치하지 않습니다. 데이터를 임의로 수정하셨나요?',
             'invalid_file': '❌ 파일 처리 중 오류가 발생했습니다. 올바른 CSV 형식인지 확인하세요.',
-            'admin_failed': '❌ 관리자 비밀번호가 틀렸습니다.'
+            'admin_failed': '❌ 관리자 권한이 없습니다.',
+            'frozen': '❌ 관리자에 의해 현재 제출이 중단되었습니다.'
         };
 
         const successMessages = {

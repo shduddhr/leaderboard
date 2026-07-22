@@ -18,8 +18,7 @@ database.init_db()
 
 app = FastAPI(title="D&A ML Session Leaderboard")
 
-# 설정 변수 (사용자가 제출 횟수 제한을 쉽게 조절 가능)
-MAX_DAILY_SUBMISSIONS = 5
+# 설정 변수 (사용자가 쉽게 조절 가능)
 ADMIN_PASSWORD = "dna_ml_admin_secret_2026" # 관리자용 비밀키
 # 2026년 7월 28일 오후 11시 59분 (KST)
 PRIVATE_REVEAL_TIME = datetime(2026, 7, 28, 23, 59, 0, tzinfo=ZoneInfo("Asia/Seoul"))
@@ -94,10 +93,13 @@ def calculate_scores(submitted_df: pd.DataFrame) -> tuple[float, float]:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, team_name: Optional[str] = Depends(get_current_team)):
     show_private_str = database.get_setting("show_private")
+    submissions_frozen = database.get_setting("submissions_frozen") == "true"
+    max_daily_submissions = int(database.get_setting("max_daily_submissions") or 5)
     
-    # 관리자가 수동으로 켰거나, 혹은 약속된 오픈 시간(7/28 23:59)이 지났을 경우 True
+    # 관리자가 수동으로 켰거나, 약속된 오픈 시간(7/28 23:59)이 지났거나, 관리자 본인이면 True
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
-    show_private = (show_private_str == "true") or (now_kst >= PRIVATE_REVEAL_TIME)
+    is_admin = (team_name == "ADMIN")
+    show_private = (show_private_str == "true") or (now_kst >= PRIVATE_REVEAL_TIME) or is_admin
     
     # 리더보드 데이터 가져오기
     leaderboard_data = database.get_leaderboard(show_private=show_private)
@@ -105,9 +107,9 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
     # 로그인된 팀의 남은 제출 횟수 계산
     remaining_submissions = None
     team_submissions = []
-    if team_name:
+    if team_name and not is_admin:
         daily_count = database.get_daily_submission_count(team_name)
-        remaining_submissions = max(0, MAX_DAILY_SUBMISSIONS - daily_count)
+        remaining_submissions = max(0, max_daily_submissions - daily_count)
         team_submissions = database.get_team_submissions(team_name)
         
     return templates.TemplateResponse(
@@ -117,9 +119,11 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
             "team_name": team_name,
             "leaderboard": leaderboard_data,
             "remaining_submissions": remaining_submissions,
-            "max_submissions": MAX_DAILY_SUBMISSIONS,
+            "max_submissions": max_daily_submissions,
+            "submissions_frozen": submissions_frozen,
             "submissions": team_submissions,
-            "show_private": show_private
+            "show_private": show_private,
+            "is_admin": is_admin
         }
     )
 
@@ -146,6 +150,15 @@ async def register(team_name: str = Form(...), password: str = Form(...)):
 @app.post("/login")
 async def login(team_name: str = Form(...), password: str = Form(...)):
     team_name = team_name.strip()
+    
+    # 관리자 로그인 처리
+    if team_name == "admin" and password == ADMIN_PASSWORD:
+        session_id = str(uuid.uuid4())
+        SESSIONS[session_id] = "ADMIN"
+        response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+        response.set_cookie(key="session_id", value=session_id, max_age=7*24*3600, httponly=True)
+        return response
+        
     success = database.verify_team(team_name, password)
     if success:
         session_id = str(uuid.uuid4())
@@ -170,12 +183,17 @@ async def submit(
     file: UploadFile = File(...),
     team_name: Optional[str] = Depends(get_current_team)
 ):
-    if not team_name:
+    if not team_name or team_name == "ADMIN":
         return RedirectResponse(url="/?error=unauthorized", status_code=status.HTTP_303_SEE_OTHER)
         
+    # 강제 제출 중단 체크
+    if database.get_setting("submissions_frozen") == "true":
+        return RedirectResponse(url="/?error=frozen", status_code=status.HTTP_303_SEE_OTHER)
+        
     # 제출 횟수 제한 체크
+    max_daily_submissions = int(database.get_setting("max_daily_submissions") or 5)
     daily_count = database.get_daily_submission_count(team_name)
-    if daily_count >= MAX_DAILY_SUBMISSIONS:
+    if daily_count >= max_daily_submissions:
         return RedirectResponse(url="/?error=limit_exceeded", status_code=status.HTTP_303_SEE_OTHER)
         
     if not file.filename.endswith('.csv'):
@@ -222,14 +240,38 @@ async def submit(
         return RedirectResponse(url="/?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/admin/toggle-private")
-async def toggle_private(admin_pass: str = Form(...)):
-    if admin_pass != ADMIN_PASSWORD:
+async def toggle_private(team_name: Optional[str] = Depends(get_current_team)):
+    if team_name != "ADMIN":
         return RedirectResponse(url="/?error=admin_failed", status_code=status.HTTP_303_SEE_OTHER)
         
     current = database.get_setting("show_private")
     new_val = "true" if current == "false" else "false"
     database.set_setting("show_private", new_val)
+    return RedirectResponse(url="/?msg=admin_success", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/update-settings")
+async def update_settings(
+    team_name: Optional[str] = Depends(get_current_team),
+    max_daily_submissions: str = Form(...),
+    submissions_frozen: str = Form(...)
+):
+    if team_name != "ADMIN":
+        return RedirectResponse(url="/?error=admin_failed", status_code=status.HTTP_303_SEE_OTHER)
+        
+    database.set_setting("max_daily_submissions", str(max_daily_submissions))
+    database.set_setting("submissions_frozen", submissions_frozen)
     
+    return RedirectResponse(url="/?msg=admin_success", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/reset-team")
+async def reset_team(
+    target_team: str = Form(...),
+    team_name: Optional[str] = Depends(get_current_team)
+):
+    if team_name != "ADMIN":
+        return RedirectResponse(url="/?error=admin_failed", status_code=status.HTTP_303_SEE_OTHER)
+        
+    database.delete_team_submissions(target_team.strip())
     return RedirectResponse(url="/?msg=admin_success", status_code=status.HTTP_303_SEE_OTHER)
 
 # 에러 메시지 맵핑을 위한 전역 컨텍스트를 프론트엔드가 참고할 수 있도록 함
