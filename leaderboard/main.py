@@ -104,15 +104,18 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
         remaining_submissions = max(0, MAX_DAILY_SUBMISSIONS - daily_count)
         team_submissions = database.get_team_submissions(team_name)
         
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "team_name": team_name,
-        "leaderboard": leaderboard_data,
-        "remaining_submissions": remaining_submissions,
-        "max_submissions": MAX_DAILY_SUBMISSIONS,
-        "submissions": team_submissions,
-        "show_private": show_private
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "team_name": team_name,
+            "leaderboard": leaderboard_data,
+            "remaining_submissions": remaining_submissions,
+            "max_submissions": MAX_DAILY_SUBMISSIONS,
+            "submissions": team_submissions,
+            "show_private": show_private
+        }
+    )
 
 @app.post("/register")
 async def register(team_name: str = Form(...), password: str = Form(...)):
