@@ -20,8 +20,8 @@ app = FastAPI(title="D&A ML Session Leaderboard")
 
 # 설정 변수 (사용자가 쉽게 조절 가능)
 ADMIN_PASSWORD = "dna_ml_admin_secret_2026" # 관리자용 비밀키
-# 2026년 7월 28일 오후 11시 59분 (KST)
-PRIVATE_REVEAL_TIME = datetime(2026, 7, 28, 23, 59, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+# 2026년 7월 28일 오후 8시 00분 (KST)
+PRIVATE_REVEAL_TIME = datetime(2026, 7, 28, 20, 0, 0, tzinfo=ZoneInfo("Asia/Seoul"))
 
 # 업로드 폴더 생성
 UPLOAD_DIR = "uploads"
@@ -96,7 +96,7 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
     submissions_frozen = database.get_setting("submissions_frozen") == "true"
     max_daily_submissions = int(database.get_setting("max_daily_submissions") or 5)
     
-    # 관리자가 수동으로 켰거나, 약속된 오픈 시간(7/28 23:59)이 지났거나, 관리자 본인이면 True
+    # 관리자가 수동으로 켰거나, 약속된 오픈 시간(7/28 20:00)이 지났거나, 관리자 본인이면 True
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
     is_admin = (team_name == "ADMIN")
     show_private = (show_private_str == "true") or (now_kst >= PRIVATE_REVEAL_TIME) or is_admin
