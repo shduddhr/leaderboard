@@ -638,7 +638,12 @@
                     <tr>
                         <th style="width: 80px; text-align: center;">순위</th>
                         <th>팀 이름</th>
-                        <th style="text-align: right;">최고 점수 (F1-score)</th>
+                        {% if is_admin %}
+                            <th style="text-align: right;">Public 최고점</th>
+                            <th style="text-align: right; color: #fbbf24;">Private 최고점</th>
+                        {% else %}
+                            <th style="text-align: right;">{% if show_private %}최종 Private 점수{% else %}최고 Public 점수{% endif %}</th>
+                        {% endif %}
                         <th style="text-align: center;">제출 수</th>
                         <th style="text-align: right;">마지막 제출</th>
                     </tr>
@@ -646,46 +651,37 @@
                 <tbody>
                     {% if leaderboard|length == 0 %}
                     <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
-                            아직 제출된 기록이 없습니다. 첫 번째 제출을 등록해보세요!
+                        <td colspan="{% if is_admin %}6{% else %}5{% endif %}" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                            아직 제출된 기록이 없습니다. 첫 번째 제출의 주인공이 되어보세요!
                         </td>
                     </tr>
                     {% else %}
                         {% for row in leaderboard %}
                         <tr class="{% if team_name == row.team_name %}my-team-row{% endif %}">
                             <td style="text-align: center;">
-                                {% if row.rank == 1 %}
-                                    <span class="rank-badge rank-1">1</span>
-                                {% elif row.rank == 2 %}
-                                    <span class="rank-badge rank-2">2</span>
-                                {% elif row.rank == 3 %}
-                                    <span class="rank-badge rank-3">3</span>
-                                {% elif row.rank == '-' %}
-                                    <span class="rank-badge rank-other">-</span>
-                                {% else %}
-                                    <span class="rank-badge rank-other">{{ row.rank }}</span>
-                                {% endif %}
+                                <span class="rank-badge 
+                                    {% if row.rank == 1 %}rank-1{% elif row.rank == 2 %}rank-2{% elif row.rank == 3 %}rank-3{% else %}rank-other{% endif %}">
+                                    {{ row.rank }}
+                                </span>
                             </td>
-                            <td style="font-weight: 600;">
-                                {{ row.team_name }}
-                                {% if team_name == row.team_name %}
-                                <span style="font-size: 0.75rem; background: var(--primary); padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.4rem;">내 팀</span>
-                                {% endif %}
-                            </td>
-                            <td style="text-align: right;">
-                                {% if row.best_score >= 0 %}
-                                    <span class="score-value">{{ "%.6f"|format(row.best_score) }}</span>
-                                {% else %}
-                                    <span style="color: var(--text-secondary);">-</span>
-                                {% endif %}
-                            </td>
+                            <td>{{ row.team_name }}</td>
+                            
+                            {% if is_admin %}
+                                <td style="text-align: right;" class="score-value">
+                                    {{ "%.6f"|format(row.public_score) }} <br><small style="color: var(--text-secondary); font-size: 0.75rem;">{{ row.public_filename }}</small>
+                                </td>
+                                <td style="text-align: right; color: #fbbf24;" class="score-value">
+                                    {{ "%.6f"|format(row.private_score) }} <br><small style="color: rgba(251, 191, 36, 0.7); font-size: 0.75rem;">{{ row.private_filename }}</small>
+                                </td>
+                            {% else %}
+                                <td style="text-align: right;" class="score-value">
+                                    {{ "%.6f"|format(row.best_score) }}
+                                </td>
+                            {% endif %}
+                            
                             <td style="text-align: center;">{{ row.total_submissions }}</td>
-                            <td style="text-align: right; color: var(--text-secondary); font-size: 0.85rem;">
-                                {% if row.last_submission %}
-                                    {{ row.last_submission[:16] }}
-                                {% else %}
-                                    -
-                                {% endif %}
+                            <td style="text-align: right; color: var(--text-secondary); font-size: 0.9rem;">
+                                {{ row.last_submission[:16] }}
                             </td>
                         </tr>
                         {% endfor %}
@@ -703,6 +699,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th style="text-align: center;">최종 평가 선택 (최대 4개)</th>
                         <th>제출 일시</th>
                         <th>제출 파일명</th>
                         <th style="text-align: right;">Public Score (30%)</th>
@@ -713,10 +710,26 @@
                 </thead>
                 <tbody>
                     {% for sub in submissions %}
-                    <tr>
+                    <tr {% if sub.is_selected %}style="background: rgba(79, 70, 229, 0.1);" {% endif %}>
+                        <td style="text-align: center;">
+                            <form action="/select-submission" method="POST" class="d-inline">
+                                <input type="hidden" name="sub_id" value="{{ sub.id }}">
+                                <input type="checkbox" onchange="this.form.submit()" 
+                                    style="transform: scale(1.5); cursor: pointer;"
+                                    {% if sub.is_selected %}checked{% endif %}
+                                    {% if show_private or submissions_frozen %}disabled{% endif %}>
+                            </form>
+                        </td>
                         <td style="color: var(--text-secondary); font-size: 0.9rem;">{{ sub.submitted_at[:19] }}</td>
                         <td>{{ sub.filename }}</td>
-                        <td style="text-align: right;" class="score-value">{{ "%.6f"|format(sub.public_score) }}</td>
+                        <td style="text-align: right;" class="score-value">
+                            {{ "%.6f"|format(sub.public_score) }}
+                            {% if sub.personal_public_rank == 1 %}
+                                <br><span style="font-size: 0.75rem; background-color: #fbbf24; color: #78350f; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 4px;">🥇 내 최고 점수</span>
+                            {% elif sub.personal_public_rank == 2 %}
+                                <br><span style="font-size: 0.75rem; background-color: #d1d5db; color: #374151; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 4px;">🥈 내 2등 점수</span>
+                            {% endif %}
+                        </td>
                         {% if show_private %}
                         <td style="text-align: right; font-weight: bold; color: #fbbf24;" class="score-value">{{ "%.6f"|format(sub.private_score) }}</td>
                         {% endif %}

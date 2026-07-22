@@ -102,7 +102,7 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
     show_private = (show_private_str == "true") or (now_kst >= PRIVATE_REVEAL_TIME) or is_admin
     
     # 리더보드 데이터 가져오기
-    leaderboard_data = database.get_leaderboard(show_private=show_private)
+    leaderboard_data = database.get_leaderboard(show_private=show_private, is_admin=is_admin)
     
     # 로그인된 팀의 남은 제출 횟수 계산
     remaining_submissions = None
@@ -188,8 +188,12 @@ async def submit(
         return RedirectResponse(url="/?error=unauthorized", status_code=status.HTTP_303_SEE_OTHER)
         
     # 강제 제출 중단 체크
-    if database.get_setting("submissions_frozen") == "true":
-        return RedirectResponse(url="/?error=frozen", status_code=status.HTTP_303_SEE_OTHER)
+    now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+    show_private = (database.get_setting("show_private") == "true") or (now_kst >= PRIVATE_REVEAL_TIME)
+    submissions_frozen = database.get_setting("submissions_frozen") == "true"
+    
+    if show_private or submissions_frozen:
+        return RedirectResponse(url="/?error=submissions_frozen", status_code=status.HTTP_303_SEE_OTHER)
         
     # 제출 횟수 제한 체크
     max_daily_submissions = int(database.get_setting("max_daily_submissions") or 5)
@@ -283,3 +287,25 @@ async def get_raw_leaderboard():
         "show_private": show_private,
         "leaderboard": database.get_leaderboard(show_private=show_private)
     })
+
+@app.post("/select-submission")
+async def select_submission_endpoint(request: Request, sub_id: int = Form(...)):
+    team_name = request.session.get("team_name")
+    if not team_name:
+        return RedirectResponse(url="/?error=unauthorized", status_code=status.HTTP_303_SEE_OTHER)
+        
+    now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+    show_private = (database.get_setting("show_private") == "true") or (now_kst >= PRIVATE_REVEAL_TIME)
+    submissions_frozen = database.get_setting("submissions_frozen") == "true"
+    
+    # 대회 종료(Private 오픈) 시점이거나 강제 동결인 경우 파일 선택/변경 금지
+    if show_private or submissions_frozen:
+        return RedirectResponse(url="/?error=submissions_frozen", status_code=status.HTTP_303_SEE_OTHER)
+        
+    success, msg = database.toggle_submission_selection(team_name, sub_id)
+    if not success:
+        if msg == "최대 4개까지만 선택할 수 있습니다.":
+            return RedirectResponse(url="/?error=max_selections", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url="/?error=generic", status_code=status.HTTP_303_SEE_OTHER)
+        
+    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
