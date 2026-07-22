@@ -18,7 +18,7 @@ database.init_db()
 app = FastAPI(title="D&A ML Session Leaderboard")
 
 # 설정 변수 (사용자가 제출 횟수 제한을 쉽게 조절 가능)
-MAX_DAILY_SUBMISSIONS = 5
+MAX_DAILY_SUBMISSIONS = 20
 ADMIN_PASSWORD = "dna_ml_admin_secret_2026" # 관리자용 비밀키
 
 # 업로드 폴더 생성
