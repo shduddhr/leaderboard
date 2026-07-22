@@ -45,23 +45,26 @@ uvicorn main:app --reload
 
 ---
 
-## 3. 무료 클라우드 서비스(Koyeb / Render) 배포 가이드 🌐
+## 3. 무료 클라우드 서비스(Render) 배포 가이드 🌐
 
-서버가 꺼지지 않고 24시간 가동되도록 7일 동안 무료 클라우드에 배포하여 운영할 수 있습니다. **Koyeb**을 사용하는 방법을 적극 권장합니다. (Render 대비 빌드 속도가 매우 빠르고 무료 도메인이 기본 제공됩니다.)
+최근 Koyeb 플랫폼이 서비스 개편(Mistral 합류)으로 인해 무료 웹 서비스 배포가 막혔습니다. 따라서 **Render(render.com)**를 통한 무료 클라우드 배포 방법을 권장합니다. (Render는 서버가 일정 시간 사용되지 않으면 절전 모드로 들어가지만, 개인 스터디용으로는 충분히 훌륭한 무료 플랫폼입니다.)
 
-### Koyeb으로 배포하기 (가장 추천)
+### Render(렌더)로 배포하기
 1. **GitHub 리포지토리 생성 및 업로드**:
    - GitHub에 새로운 비공개(Private) 또는 공개(Public) 리포지토리를 만들고, `leaderboard/` 폴더 안의 모든 파일(Dockerfile, requirements.txt, main.py, database.py, templates/ 등)을 푸시합니다.
-   - 단, `data/` 폴더와 `leaderboard.db`는 푸시하지 않아도 됩니다. (서버 빌드 시점에 자동으로 생성됨)
-2. **Koyeb 가입 및 계정 연결**:
-   - [Koyeb 공식 사이트](https://www.koyeb.com/)에 접속하여 가입 후 GitHub 계정을 연동합니다.
-3. **App 생성**:
-   - `Create Service` -> `GitHub`를 선택하고 방금 생성한 리포지토리를 연결합니다.
-   - **Builder**: `Docker`를 선택합니다 (Dockerfile이 자동 탐색됩니다).
-   - **Instance Type**: `Nano` (무료 티어)를 선택합니다.
-   - **Ports**: 포트 번호 `8000`을 추가하고 프로토콜은 `HTTP`로 설정합니다.
-4. **Deploy**:
-   - `Deploy` 버튼을 누르면 약 2~3분 내에 빌드가 완료되고 고유의 무료 도메인 주소(예: `xxxx.koyeb.app`)가 생성됩니다. 참가자들에게 이 주소를 공유하세요!
+   - 단, `data/` 폴더와 `leaderboard.db`는 푸시하지 않아도 됩니다. (서버 빌드 시점에 Dockerfile에서 데이터를 자동 생성합니다)
+2. **Render 가입 및 연동**:
+   - [Render 공식 사이트](https://render.com/)에 접속하여 가입 후 GitHub 계정을 연동합니다.
+3. **Web Service 생성**:
+   - Dashboard에서 `New +` -> `Web Service`를 클릭합니다.
+   - `Build and deploy from a Git repository`를 선택하고, 방금 만든 리포지토리를 연결합니다.
+4. **배포 설정**:
+   - Name: 원하는 서비스 이름 입력
+   - Environment: `Docker` (Dockerfile을 자동으로 인식합니다)
+   - Instance Type: `Free` 요금제 선택
+5. **Deploy**:
+   - 화면 하단의 `Create Web Service` 버튼을 누르면 배포가 시작됩니다.
+   - 약 3~5분 뒤 배포가 완료되면 화면 상단에 배포된 URL(예: `xxxx.onrender.com`)이 나타납니다. 참가자들에게 이 주소를 공유하세요!
 
 ---
 

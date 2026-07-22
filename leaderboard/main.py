@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sklearn.metrics import f1_score
 from typing import Optional
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import database
 
@@ -18,8 +19,10 @@ database.init_db()
 app = FastAPI(title="D&A ML Session Leaderboard")
 
 # 설정 변수 (사용자가 제출 횟수 제한을 쉽게 조절 가능)
-MAX_DAILY_SUBMISSIONS = 20
+MAX_DAILY_SUBMISSIONS = 5
 ADMIN_PASSWORD = "dna_ml_admin_secret_2026" # 관리자용 비밀키
+# 2026년 7월 28일 오후 11시 59분 (KST)
+PRIVATE_REVEAL_TIME = datetime(2026, 7, 28, 23, 59, 0, tzinfo=ZoneInfo("Asia/Seoul"))
 
 # 업로드 폴더 생성
 UPLOAD_DIR = "uploads"
@@ -91,7 +94,10 @@ def calculate_scores(submitted_df: pd.DataFrame) -> tuple[float, float]:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, team_name: Optional[str] = Depends(get_current_team)):
     show_private_str = database.get_setting("show_private")
-    show_private = show_private_str == "true"
+    
+    # 관리자가 수동으로 켰거나, 혹은 약속된 오픈 시간(7/28 23:59)이 지났을 경우 True
+    now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+    show_private = (show_private_str == "true") or (now_kst >= PRIVATE_REVEAL_TIME)
     
     # 리더보드 데이터 가져오기
     leaderboard_data = database.get_leaderboard(show_private=show_private)
