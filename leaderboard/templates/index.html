@@ -603,8 +603,8 @@
                     <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #fbbf24;">Private 오픈 토글</h3>
                     <form action="/admin/toggle-private" method="post">
                         <button type="submit" class="btn" style="background: linear-gradient(135deg, var(--accent-warn) 0%, #d97706 100%);">
-                            {% if show_private %}
-                            현재: 전체 오픈 상태 🔓 (Public 뷰로 되돌리기)
+                            {% if global_show_private %}
+                            현재: 전체 오픈 상태 🔓 (전체 비공개로 되돌리기)
                             {% else %}
                             현재: 전체 비공개 🔒 (전체 강제 오픈하기)
                             {% endif %}

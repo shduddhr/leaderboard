@@ -123,6 +123,7 @@ async def home(request: Request, team_name: Optional[str] = Depends(get_current_
             "submissions_frozen": submissions_frozen,
             "submissions": team_submissions,
             "show_private": show_private,
+            "global_show_private": (show_private_str == "true"),
             "is_admin": is_admin
         }
     )
