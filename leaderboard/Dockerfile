@@ -16,9 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 소스코드 전체 복사
 COPY . .
 
-# 빌드 시점에 합성 데이터 자동 생성 (data/ 폴더 및 csv 파일 생성)
-RUN python generate_data.py
-
 # 포트 설정
 EXPOSE 8000
 
