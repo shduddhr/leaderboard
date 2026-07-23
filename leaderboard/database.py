@@ -315,6 +315,23 @@ def set_setting(key: str, value: str):
     conn.commit()
     conn.close()
 
+def delete_team(team_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM submissions WHERE team_name = %s" if DATABASE_URL else "DELETE FROM submissions WHERE team_name = ?", (team_name,))
+    cursor.execute("DELETE FROM teams WHERE team_name = %s" if DATABASE_URL else "DELETE FROM teams WHERE team_name = ?", (team_name,))
+    conn.commit()
+    conn.close()
+
+def reset_submissions():
+    """모든 제출 기록을 삭제합니다 (V2 데이터셋 배포 등 리더보드 초기화 시 사용)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM submissions")
+    conn.commit()
+    conn.close()
+    return True
+
 def delete_team_submissions(team_name: str):
     conn = get_connection()
     cursor = conn.cursor()

@@ -268,8 +268,27 @@ async def update_settings(
     
     return RedirectResponse(url="/?msg=admin_success", status_code=status.HTTP_303_SEE_OTHER)
 
+@app.post("/admin/reset-db")
+async def admin_reset_db(team_name: Optional[str] = Depends(get_current_team)):
+    if team_name != "ADMIN":
+        return RedirectResponse(url="/?error=unauthorized", status_code=status.HTTP_303_SEE_OTHER)
+        
+    database.reset_submissions()
+    return RedirectResponse(url="/?msg=db_reset_success", status_code=status.HTTP_303_SEE_OTHER)
+
 @app.post("/admin/reset-team")
 async def reset_team(
+    target_team: str = Form(...),
+    team_name: Optional[str] = Depends(get_current_team)
+):
+    if team_name != "ADMIN":
+        return RedirectResponse(url="/?error=unauthorized", status_code=status.HTTP_303_SEE_OTHER)
+        
+    database.delete_team_submissions(target_team)
+    return RedirectResponse(url="/?msg=team_reset_success", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/delete-team")
+async def admin_delete_team(
     target_team: str = Form(...),
     team_name: Optional[str] = Depends(get_current_team)
 ):

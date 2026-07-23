@@ -621,6 +621,12 @@
                         </div>
                     </form>
                 </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(239,68,68,0.3);">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #ef4444;">🚨 대회 데이터베이스 초기화 (위험!)</h3>
+                    <form action="/admin/reset-db" method="post" onsubmit="return confirm('⚠️ 정말로 [모든 팀의 모든 제출 기록]을 삭제하시겠습니까? V2 데이터 적용 등 리더보드를 완전히 새로 시작할 때만 사용하세요!');">
+                        <button type="submit" class="btn" style="background: #b91c1c; width: 100%; white-space:nowrap; font-weight: bold;">모든 제출 기록 완전 리셋</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
